@@ -1,0 +1,72 @@
+import React, {Component} from 'react';
+import { shallow, mount } from 'enzyme';
+import spyConsole from "../utils/spyConsole";
+
+import TargetControlWrapper from "../../src/components/TargetControlWrapper";
+import RegionManager from "../../src/components/RegionManager";
+
+const REGION_NAME = "TestRegion";
+
+describe('<TargetControlWrapper />', () => {
+    spyConsole();
+    let regionRegistry;
+
+    beforeEach(() => {
+        regionRegistry = {addRegion: jest.fn()};
+    });
+
+    it('throws if no regionName', () => {
+        expect(() => shallow(<TargetControlWrapper />)).toThrow(/regionName required/);
+        expect(console.error).toHaveBeenCalled();
+    });
+
+    it('throws if no parent RegionManager or regionRegistry in context', () => {
+        expect(() => {
+            shallow(<TargetControlWrapper regionName={REGION_NAME} />)
+        }).toThrow('regionRegistry not available. Make sure RegionManager exists in parent tree or regionRegistry passed in control context.');
+    });
+
+    it('not throws when regionRegistry passed in context', () => {
+        expect(() => {
+            mount(
+                <TargetControlWrapper regionName={REGION_NAME} />,
+                {
+                    context: {regionRegistry: regionRegistry},
+                }
+            )
+        }).not.toThrow();
+    });
+
+    it('not throws when RegionManager in parent tree', () => {
+        expect(() => {
+            mount(
+                <RegionManager>
+                    <TargetControlWrapper regionName={REGION_NAME} />,
+                </RegionManager>
+            )
+        }).not.toThrow();
+    });
+
+    it('registers new region in regionRegistry with region created by adapter', () => {
+        const region = {setName: jest.fn()};
+        const createRegion = jest.fn().mockReturnValue(region);
+
+        const Adapter = jest.fn().mockImplementation(() => {
+            return {
+                createRegion: createRegion
+            }
+        });
+
+        shallow(
+            <TargetControlWrapper regionName={REGION_NAME} regionAdapter={new Adapter} />,
+            {
+                context: {regionRegistry: regionRegistry}
+            }
+        );
+        expect(createRegion).toHaveBeenCalled();
+        expect(region.setName).toHaveBeenCalled();
+        expect(regionRegistry.addRegion).toHaveBeenCalledWith(region);
+    });
+
+});
+
